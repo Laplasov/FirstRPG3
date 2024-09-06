@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using static UnityEditor.VersionControl.Asset;
 
 public enum BattleStates { START, PLAYERTURN, CHOOSE, WAITACTION, ENEMYTURN, WON, LOST }
@@ -20,6 +21,8 @@ public class BattleLogic : MonoBehaviour
 
     public Unit choosenAlly;
     public Unit choosenFoe;
+    public TMP_Dropdown actionTypeDropdown;
+    public GameObject dropAndActionContainer;
 
     private void Start()
     {
@@ -33,6 +36,7 @@ public class BattleLogic : MonoBehaviour
         SpawnAllies(allyUnits, allyStations);
 
         status = BattleStates.START;
+        actionTypeDropdown.value = 0;
 
         StartCoroutine(SetupBattle());
 
@@ -79,7 +83,23 @@ public class BattleLogic : MonoBehaviour
 
         if (choosenAlly != null && choosenFoe != null && status == BattleStates.WAITACTION)
         {
-            StartCoroutine(PlayerAttack());
+
+            switch (actionTypeDropdown.value)
+            {
+                case 0:
+                    StartCoroutine(PlayerAttack());
+                    break;
+                case 1:
+                    StartCoroutine(PlayerDefence());
+                    break;
+                case 2:
+                    StartCoroutine(PlayerHeal());
+                    break;
+                default:
+                    return;
+            }
+
+            dropAndActionContainer.SetActive(false);
         } 
         else 
         { 
@@ -88,6 +108,7 @@ public class BattleLogic : MonoBehaviour
 
         status = BattleStates.PLAYERTURN;
     }
+
     IEnumerator PlayerAttack()
     {
         int damage;
@@ -108,15 +129,38 @@ public class BattleLogic : MonoBehaviour
         yield return new WaitForSeconds(2f);
     }
 
+    IEnumerator PlayerDefence()
+    {
+        choosenAlly.unitDefence = choosenAlly.unitDefence + 5;
+
+        CleanUpDisable();
+
+        dialogueText.text = "You are blocking!";
+        yield return new WaitForSeconds(2f);
+    }
+    IEnumerator PlayerHeal()
+    {
+        choosenAlly.currentHealth = choosenAlly.currentHealth + 10;
+
+        CleanUpDisable();
+
+        dialogueText.text = "Health restored!";
+        yield return new WaitForSeconds(2f);
+    }
+
+
     public void OnEndTurnButton()
     {
-        if (status != BattleStates.PLAYERTURN || status != BattleStates.CHOOSE)
+        if (status != BattleStates.PLAYERTURN && status != BattleStates.CHOOSE && status != BattleStates.WAITACTION)
         {
             return;
         }
 
+        EndTurnCleanUp();
+
         status = BattleStates.ENEMYTURN;
     }
+
     public void CleanUpDisable()
     {
         choosenAlly.OnChooseAll();
@@ -127,6 +171,19 @@ public class BattleLogic : MonoBehaviour
 
         choosenAlly = null;
         choosenFoe = null;
+    }
+
+    public void EndTurnCleanUp()
+    {
+        foreach(var unit in allyUnits)
+        {
+            unit.OnEndTurn();
+        }
+        foreach (var unit in enemyUnits)
+        {
+            unit.OnEndTurn();
+        }
+
     }
 
 }

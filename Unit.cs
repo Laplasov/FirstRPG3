@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using static UnityEngine.UI.CanvasScaler;
 using UnityEngine.Events;
+using TMPro;
+using UnityEngine.UI;
 
 public class Unit : MonoBehaviour
 {
@@ -22,6 +24,7 @@ public class Unit : MonoBehaviour
     private bool unitChoosen;
     private BattleLogic battleLogic;
     private bool unitDisable;
+    
 
     void Start()
     {
@@ -43,20 +46,18 @@ public class Unit : MonoBehaviour
 
     private void OnMouseEnter()
     {
+        if (battleLogic.status == BattleStates.START) { return; }
+
         if (battleLogic.status == BattleStates.PLAYERTURN && loyalty == "Ally" && !unitDisable)
         {
             if (!unitChoosen)
             {
                 renderer.material.color = Color.red;
-                //BatteHud.HudVisible();
-                //hud.SetHUD(this);
             }
         }
         if (battleLogic.status == BattleStates.CHOOSE && loyalty == "Foe")
         {
             renderer.material.color = Color.red;
-            //BatteHud.HudVisible();
-            //hud.SetHUD(this);
         }
         BatteHud.HudVisible();
         hud.SetHUD(this);
@@ -65,6 +66,8 @@ public class Unit : MonoBehaviour
 
     private void OnMouseExit()
     {
+        if (battleLogic.status == BattleStates.START) { return; }
+
         if (!unitChoosen && !unitDisable) 
         { 
             renderer.material.color = Color.white;
@@ -79,12 +82,15 @@ public class Unit : MonoBehaviour
     }
     private void OnMouseDown()
     {
+        if (battleLogic.status == BattleStates.START) { return; }
+
         if (battleLogic.status == BattleStates.PLAYERTURN && loyalty == "Ally" && !unitDisable)
         {
             hud.EscOn();
             unitChoosen = true;
             battleLogic.status = BattleStates.CHOOSE;
             battleLogic.choosenAlly = this;
+            battleLogic.dropAndActionContainer.SetActive(true);
             StartCoroutine(WaitForEscape());
         }
 
@@ -105,10 +111,11 @@ public class Unit : MonoBehaviour
             yield return null;
             if (Input.GetKeyDown(KeyCode.Escape))
             {
+                unitChoosen = false;
+                battleLogic.status = BattleStates.PLAYERTURN;
 
-                    unitChoosen = false;
-                    battleLogic.status = BattleStates.PLAYERTURN;
-                
+                battleLogic.dropAndActionContainer.SetActive(false);
+
                 renderer.material.color = Color.white;
                 break;
             }
@@ -134,6 +141,12 @@ public class Unit : MonoBehaviour
             renderer.material.color = Color.white;
         }
 
+    }
+    public void OnEndTurn()
+    {
+        unitChoosen = false;
+        unitDisable = false;
+        renderer.material.color = Color.white;
     }
 
 }
