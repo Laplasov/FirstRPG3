@@ -14,6 +14,7 @@ public class Unit : MonoBehaviour
     public int unitLevel;
     public int unitAttack;
     public int unitDefence;
+    public int unitModDefence;
     public int unitSkillPoints;
     public int maxHealth;
     public int currentHealth;
@@ -32,15 +33,16 @@ public class Unit : MonoBehaviour
         unitAttack = Random.Range(1 + unitLevel, 10 + unitLevel);
         maxHealth = Random.Range(30, 45);
         currentHealth = Random.Range(25, maxHealth);
-        unitDefence = Random.Range(5, 15);
+        unitDefence = Random.Range(2, 8);
         unitSkillPoints = Random.Range(1, 5) + unitLevel;
         unitChoosen = false;
         unitDisable = false;
+        unitModDefence = 0;
 
         renderer = GetComponent<Renderer>();
         hud = FindObjectOfType<BatteHud>();
         battleLogic = FindObjectOfType<BattleLogic>();
-
+        renderer.material.color = Color.white;
 
     }
 

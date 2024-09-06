@@ -81,13 +81,15 @@ public class BattleLogic : MonoBehaviour
     public void OnActionButton()
     {
 
-        if (choosenAlly != null && choosenFoe != null && status == BattleStates.WAITACTION)
+        if (choosenAlly != null && choosenFoe != null && 
+            ((status == BattleStates.CHOOSE) || (status == BattleStates.WAITACTION)))
         {
 
             switch (actionTypeDropdown.value)
             {
                 case 0:
-                    StartCoroutine(PlayerAttack());
+                    if (status != BattleStates.WAITACTION) { return; }
+                        StartCoroutine(PlayerAttack());
                     break;
                 case 1:
                     StartCoroutine(PlayerDefence());
@@ -140,7 +142,7 @@ public class BattleLogic : MonoBehaviour
     }
     IEnumerator PlayerHeal()
     {
-        choosenAlly.currentHealth = choosenAlly.currentHealth + 10;
+        choosenAlly.currentHealth = Mathf.Min(choosenAlly.currentHealth + 10, choosenAlly.maxHealth);
 
         CleanUpDisable();
 
@@ -159,6 +161,25 @@ public class BattleLogic : MonoBehaviour
         EndTurnCleanUp();
 
         status = BattleStates.ENEMYTURN;
+
+        StartCoroutine(EnemyTurn());
+        status = BattleStates.PLAYERTURN;
+
+    }
+    IEnumerator EnemyTurn()
+    {
+
+        foreach (Unit enemy in enemyUnits)
+        {
+            Unit allyTargeted = allyUnits[Random.Range(0, allyUnits.Length - 1 )];
+
+            int damage = Mathf.Max(enemy.unitAttack - allyTargeted.unitDefence, 0);
+            allyTargeted.currentHealth -= damage;
+
+
+        }
+
+        yield return new WaitForSeconds(2f);
     }
 
     public void CleanUpDisable()
