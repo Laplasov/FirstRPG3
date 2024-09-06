@@ -2,8 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using static UnityEditor.VersionControl.Asset;
 
 public enum BattleStates { START, PLAYERTURN, CHOOSE, WAITACTION, ENEMYTURN, WON, LOST }
 
@@ -69,44 +69,49 @@ public class BattleLogic : MonoBehaviour
 
         yield return new WaitForSeconds(2f);
 
-        status = BattleStates.PLAYERTURN;
         PlayerTurn();
     }
 
     void PlayerTurn()
     {
         dialogueText.text = "Your turn";
-
+        status = BattleStates.PLAYERTURN;
     }
     public void OnActionButton()
     {
 
-        if (choosenAlly != null && choosenFoe != null && 
-            ((status == BattleStates.CHOOSE) || (status == BattleStates.WAITACTION)))
+        if (choosenAlly != null)
         {
-
-            switch (actionTypeDropdown.value)
+            if (status == BattleStates.WAITACTION)
             {
-                case 0:
-                    if (status != BattleStates.WAITACTION) { return; }
-                        StartCoroutine(PlayerAttack());
-                    break;
-                case 1:
-                    StartCoroutine(PlayerDefence());
-                    break;
-                case 2:
-                    StartCoroutine(PlayerHeal());
-                    break;
-                default:
-                    return;
+                if (actionTypeDropdown.value == 0)
+                {
+                    StartCoroutine(PlayerAttack());
+                }
             }
+            if (status == BattleStates.CHOOSE && actionTypeDropdown.value == 0)
+            {
+                return;
+            } 
 
-            dropAndActionContainer.SetActive(false);
+            if (status == BattleStates.CHOOSE || status == BattleStates.WAITACTION)
+            {
+                if (actionTypeDropdown.value == 1)
+                {
+                    StartCoroutine(PlayerDefence());
+                }
+                else if (actionTypeDropdown.value == 2)
+                {
+                    StartCoroutine(PlayerHeal());
+                }
+            }
         } 
         else 
         { 
             return;
         }
+
+        dropAndActionContainer.SetActive(false);
 
         status = BattleStates.PLAYERTURN;
     }
@@ -184,11 +189,16 @@ public class BattleLogic : MonoBehaviour
 
     public void CleanUpDisable()
     {
-        choosenAlly.OnChooseAll();
+        if (choosenAlly != null) { 
+            choosenAlly.OnChooseAll();
         choosenAlly.OnUnitDisable();
+        }
 
-        choosenFoe.OnChooseAll();
-        choosenFoe.OnUnitDisable();
+        if (choosenFoe != null)
+        {
+            choosenFoe.OnChooseAll();
+            choosenFoe.OnUnitDisable();
+        }
 
         choosenAlly = null;
         choosenFoe = null;
@@ -204,6 +214,18 @@ public class BattleLogic : MonoBehaviour
         {
             unit.OnEndTurn();
         }
+
+    }
+    public void ExitGame()
+    {
+
+        Application.Quit();
+
+    }
+    public void ReloadScene()
+    {
+
+        SceneManager.LoadScene("V1");
 
     }
 
