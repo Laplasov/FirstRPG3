@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -14,8 +15,8 @@ public class BattleLogic : MonoBehaviour
 
     public BattleStates status;
 
-    public Unit[] allyUnits;
-    public Unit[] enemyUnits;
+    public List<Unit> allyUnits;
+    public List<Unit> enemyUnits;
 
     public TMP_Text dialogueText;
 
@@ -26,8 +27,8 @@ public class BattleLogic : MonoBehaviour
 
     private void Start()
     {
-        allyUnits = new Unit[6];
-        enemyUnits = new Unit[6];
+        allyUnits = new List<Unit>();
+        enemyUnits = new List<Unit>();
 
         var allyStations = GameObject.FindGameObjectsWithTag("AllyStation");
         var foeStations = GameObject.FindGameObjectsWithTag("FoeStation");
@@ -41,31 +42,26 @@ public class BattleLogic : MonoBehaviour
         StartCoroutine(SetupBattle());
 
     }
-    private void SpawnEnemies(Unit[] enemyUnits, GameObject[] stations)
+    private void SpawnEnemies(List<Unit> enemyUnits, GameObject[] stations)
     {
-        int i = 0;
         foreach (var station in stations)
         {
             GameObject enemyGo = Instantiate(enemyPrefab, station.transform);
-            enemyUnits[i] = enemyGo.GetComponent<Unit>();
-            i++;
+            enemyUnits.Add(enemyGo.GetComponent<Unit>());
         }
     }
-    private void SpawnAllies(Unit[] allyUnits, GameObject[] stations)
+    private void SpawnAllies(List<Unit> allyUnits, GameObject[] stations)
     {
-        int i = 0;
         foreach (var station in stations)
         {
             GameObject allyGo = Instantiate(playerPrefab, station.transform);
-            allyUnits[i] = allyGo.GetComponent<Unit>();
-            allyGo.GetComponent<Unit>();
-            i++;
+            allyUnits.Add(allyGo.GetComponent<Unit>());
         }
     }
 
     IEnumerator SetupBattle()
     {
-        dialogueText.text = "Battle begins, there is " + enemyUnits.Length + " enemy units named " + enemyUnits[0].unitName;
+        dialogueText.text = "Battle begins, there is " + enemyUnits.Count + " enemy units named " + enemyUnits[0].unitName;
 
         yield return new WaitForSeconds(2f);
 
@@ -79,7 +75,6 @@ public class BattleLogic : MonoBehaviour
     }
     public void OnActionButton()
     {
-
         if (choosenAlly != null)
         {
             if (status == BattleStates.WAITACTION)
@@ -92,7 +87,7 @@ public class BattleLogic : MonoBehaviour
             if (status == BattleStates.CHOOSE && actionTypeDropdown.value == 0)
             {
                 return;
-            } 
+            }
 
             if (status == BattleStates.CHOOSE || status == BattleStates.WAITACTION)
             {
@@ -105,9 +100,9 @@ public class BattleLogic : MonoBehaviour
                     StartCoroutine(PlayerHeal());
                 }
             }
-        } 
-        else 
-        { 
+        }
+        else
+        {
             return;
         }
 
@@ -123,17 +118,53 @@ public class BattleLogic : MonoBehaviour
         {
             damage = 0;
         }
-        else 
+        else
         {
             damage = choosenAlly.unitAttack - choosenFoe.unitDefence;
         }
 
         choosenFoe.currentHealth = choosenFoe.currentHealth - damage;
 
-        CleanUpDisable();
+        yield return StartCoroutine(WaitForPlayerMovement());
 
-        dialogueText.text = "Attack is successful!";
+        if (choosenFoe.currentHealth <= 0)
+        {
+            enemyUnits.Remove(choosenFoe);
+            Destroy(choosenFoe.gameObject);
+            dialogueText.text = "Unit destroed!";
+        }
+        else 
+        {
+            dialogueText.text = "Attack is successful!";
+        }
+
+        CleanUpDisable();
         yield return new WaitForSeconds(2f);
+    }
+
+    IEnumerator WaitForPlayerMovement()
+    {
+        Vector3 startPosition = choosenAlly.transform.position;
+        Vector3 endPosition = choosenFoe.transform.position;
+        float time = 0f;
+        float LerpSpeed = 0.01f;
+
+        while (time < 1f)
+        {
+            choosenAlly.transform.position = Vector3.Lerp(startPosition, endPosition, time);
+            time += Time.deltaTime;
+            yield return new WaitForSeconds(LerpSpeed);
+        }
+
+        time = 0f;
+        while (time < 1f)
+        {
+            choosenAlly.transform.position = Vector3.Lerp(endPosition, startPosition, time);
+            time += Time.deltaTime;
+            yield return new WaitForSeconds(LerpSpeed);
+        }
+
+        yield return new WaitForSeconds(0.5f);
     }
 
     IEnumerator PlayerDefence()
@@ -168,30 +199,70 @@ public class BattleLogic : MonoBehaviour
         status = BattleStates.ENEMYTURN;
 
         StartCoroutine(EnemyTurn());
-        status = BattleStates.PLAYERTURN;
-
     }
     IEnumerator EnemyTurn()
     {
-
         foreach (Unit enemy in enemyUnits)
         {
-            Unit allyTargeted = allyUnits[Random.Range(0, allyUnits.Length - 1 )];
+            Unit allyTargeted = allyUnits[Random.Range(0, allyUnits.Count)];
 
             int damage = Mathf.Max(enemy.unitAttack - allyTargeted.unitDefence, 0);
             allyTargeted.currentHealth -= damage;
 
+            if (allyTargeted.currentHealth <= 0)
+            {
+                allyUnits.Remove(allyTargeted);
+                Destroy(allyTargeted.gameObject);
+            }
 
+            enemy.InTargeted();
+            allyTargeted.InTargeted();
+
+            yield return StartCoroutine(WaitForEnemyMovement(enemy, allyTargeted));
+
+            yield return new WaitForSeconds(1f);
+
+            enemy.OutTargeted();
+            if (allyTargeted != null)
+            {
+                allyTargeted.OutTargeted();
+            }
+        }
+        status = BattleStates.PLAYERTURN;
+    }
+    IEnumerator WaitForEnemyMovement(Unit enemy, Unit allyTargeted)
+    {
+        Vector3 startPosition = enemy.transform.position;
+        Vector3 endPosition = allyTargeted.transform.position;
+        float time = 0f;
+        float LerpSpeed = 0.01f;
+
+        while (time < 1f)
+        {
+            enemy.transform.position = Vector3.Lerp(startPosition, endPosition, time);
+            time += Time.deltaTime;
+            yield return new WaitForSeconds(LerpSpeed);
         }
 
-        yield return new WaitForSeconds(2f);
+        time = 0f;
+        while (time < 1f)
+        {
+            enemy.transform.position = Vector3.Lerp(endPosition, startPosition, time);
+            time += Time.deltaTime;
+            yield return new WaitForSeconds(LerpSpeed);
+        }
+
+        yield return new WaitForSeconds(0.5f);
     }
+
+
 
     public void CleanUpDisable()
     {
-        if (choosenAlly != null) { 
+        if (choosenAlly != null)
+        {
             choosenAlly.OnChooseAll();
-        choosenAlly.OnUnitDisable();
+            choosenAlly.OnUnitDisable();
         }
 
         if (choosenFoe != null)
@@ -206,27 +277,15 @@ public class BattleLogic : MonoBehaviour
 
     public void EndTurnCleanUp()
     {
-        foreach(var unit in allyUnits)
+        foreach (var unit in allyUnits)
         {
+            Debug.Log("ally" + unit.currentHealth);
             unit.OnEndTurn();
         }
         foreach (var unit in enemyUnits)
         {
+            Debug.Log("enemy" + unit.currentHealth);
             unit.OnEndTurn();
         }
-
     }
-    public void ExitGame()
-    {
-
-        Application.Quit();
-
-    }
-    public void ReloadScene()
-    {
-
-        SceneManager.LoadScene("V1");
-
-    }
-
 }

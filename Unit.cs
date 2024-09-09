@@ -25,7 +25,8 @@ public class Unit : MonoBehaviour
     private bool unitChoosen;
     private BattleLogic battleLogic;
     private bool unitDisable;
-    
+    private bool _unitSelfChosen;
+
 
     void Start()
     {
@@ -96,7 +97,7 @@ public class Unit : MonoBehaviour
             StartCoroutine(WaitForEscape());
         }
 
-        if (battleLogic.status == BattleStates.CHOOSE && loyalty == "Foe")
+        if (battleLogic.status == BattleStates.CHOOSE && loyalty == "Foe" && !DropdownValueBuff())
         {
             battleLogic.choosenFoe = this;
             unitChoosen = true;
@@ -108,8 +109,18 @@ public class Unit : MonoBehaviour
 
     private IEnumerator WaitForEscape()
     {
+        IsUnitSelfChosen();
         while (unitChoosen)
         {
+            if (renderer.material.color != Color.green && IsUnitSelfChosen())
+            {
+                renderer.material.color = Color.green;
+            } 
+            else if (renderer.material.color != Color.red && !DropdownValueBuff())
+            {
+                renderer.material.color = Color.red;
+            }
+
             yield return null;
             if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -149,6 +160,39 @@ public class Unit : MonoBehaviour
         unitChoosen = false;
         unitDisable = false;
         renderer.material.color = Color.white;
+    }
+    public void InTargeted()
+    {
+        renderer.material.color = Color.red;
+    }
+    public void OutTargeted()
+    {
+        renderer.material.color = Color.white;
+    }
+    public bool IsUnitSelfChosen()
+    {
+        if (loyalty == "Ally" &&
+        (battleLogic.actionTypeDropdown.value == 1 ||
+        battleLogic.actionTypeDropdown.value == 2))
+        {
+             return true;
+        } 
+        else
+        {
+            return false;
+        }
+    }
+    public bool DropdownValueBuff()
+    {
+        if (battleLogic.actionTypeDropdown.value == 1 ||
+            battleLogic.actionTypeDropdown.value == 2)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
 }
