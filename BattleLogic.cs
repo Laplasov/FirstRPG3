@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
-using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -137,6 +136,12 @@ public class BattleLogic : MonoBehaviour
         {
             dialogueText.text = "Attack is successful!";
         }
+        if (enemyUnits.Count == 0)
+        {
+            status = BattleStates.WON;
+            dialogueText.text = "You have WON!";
+            yield break;
+        }
 
         CleanUpDisable();
         yield return new WaitForSeconds(2f);
@@ -208,17 +213,17 @@ public class BattleLogic : MonoBehaviour
 
             int damage = Mathf.Max(enemy.unitAttack - allyTargeted.unitDefence, 0);
             allyTargeted.currentHealth -= damage;
+            
+            enemy.InTargeted();
+            allyTargeted.InTargeted();
+
+            yield return StartCoroutine(WaitForEnemyMovement(enemy, allyTargeted));
 
             if (allyTargeted.currentHealth <= 0)
             {
                 allyUnits.Remove(allyTargeted);
                 Destroy(allyTargeted.gameObject);
             }
-
-            enemy.InTargeted();
-            allyTargeted.InTargeted();
-
-            yield return StartCoroutine(WaitForEnemyMovement(enemy, allyTargeted));
 
             yield return new WaitForSeconds(1f);
 
@@ -227,8 +232,16 @@ public class BattleLogic : MonoBehaviour
             {
                 allyTargeted.OutTargeted();
             }
+
+            if (allyUnits.Count == 0)
+            {
+                status = BattleStates.LOST;
+                dialogueText.text = "You have LOST!";
+                yield break;
+            }
         }
         status = BattleStates.PLAYERTURN;
+
     }
     IEnumerator WaitForEnemyMovement(Unit enemy, Unit allyTargeted)
     {
@@ -279,12 +292,10 @@ public class BattleLogic : MonoBehaviour
     {
         foreach (var unit in allyUnits)
         {
-            Debug.Log("ally" + unit.currentHealth);
             unit.OnEndTurn();
         }
         foreach (var unit in enemyUnits)
         {
-            Debug.Log("enemy" + unit.currentHealth);
             unit.OnEndTurn();
         }
     }

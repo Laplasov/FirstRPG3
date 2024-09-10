@@ -17,6 +17,6 @@ public class TopMenuHolder : MonoBehaviour
     }
     public void ReloadScene()
     {
-        SceneManager.LoadScene("V1"); 
+        SceneManager.LoadScene("V2"); 
     }
 }

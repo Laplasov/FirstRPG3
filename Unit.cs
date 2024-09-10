@@ -64,6 +64,7 @@ public class Unit : MonoBehaviour
         }
         BatteHud.HudVisible();
         hud.SetHUD(this);
+        //hud.UpdatePosition();
 
     }
 
